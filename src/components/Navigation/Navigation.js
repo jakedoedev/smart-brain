@@ -1,13 +1,17 @@
 import React from 'react';
+import ProfileIcon from '../Profile/ProfileIcon';
 
-const Navigation = ({ onRouteChange, isSignedIn, username }) => {
+const Navigation = ({ onRouteChange, isSignedIn, toggleModal, username }) => {
     if (isSignedIn) {
       return (
         <nav style={{display: 'flex', justifyContent: 'flex-end'}}>
-          <h1 className="pa3">{username}</h1>
-          <p onClick={() => onRouteChange('signout')} className='f3 link dim black underline pa3 pointer'>
+          {/* <h1 className="pa3">{username}</h1> */}
+          <ProfileIcon
+            onRouteChange={onRouteChange}
+            toggleModal={toggleModal}/>
+          {/* <p onClick={() => onRouteChange('signout')} className='f3 link dim black underline pa3 pointer'>
             Sign Out
-          </p>
+          </p> */}
         </nav>
       );
     } else {
