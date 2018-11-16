@@ -27,15 +27,17 @@ const initialState = {
   input: '',
   imageUrl: '',
   boxes: [],
-  route: 'home',
-  isSignedIn: true,
+  route: 'signin',
+  isSignedIn: false,
   isProfileOpen: false ,
   user: {
     id: '',
     name: '',
     email: '',
     entries: 0,
-    joined: ''
+    joined: '',
+    pet: '',
+    age: ''
   }
 }
 
@@ -45,10 +47,47 @@ class App extends Component {
     this.state = initialState;
   }
 
+  componentDidMount() {
+    const token = window.sessionStorage.getItem('token');
+    if(token) {
+      fetch('http://localhost:3000/signin', {
+        method: 'post',
+        headers: {
+          'Content-Type': 'application/json',
+          // TODO: Apply Standard 'Authorization' : 'Bearer ' + token
+          'Authorization': token
+          // 'Authorization' : 'Bearer ' + token
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.id){
+          fetch(`http://localhost:3000/profile/${data.id}`, {
+            method: 'get',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token
+            }
+          })
+          .then(response => response.json())
+          .then(user => {
+            if(user && user.email){
+              this.loadUser(user);
+              this.onRouteChange('home');
+            }
+          })
+        }
+      })
+      .catch(error => console.log(error));
+    }
+  }
+
   loadUser = (data) => {
     this.setState({user: {
       id: data.id,
       name: data.name,
+      age: data.age,
+      pet: data.pet,
       email: data.email,
       entries: data.entries,
       joined: data.joined
@@ -56,6 +95,10 @@ class App extends Component {
   }
 
   calculateFacesLocation = (data) => {
+    if(!data && !data.outputs){
+      return;
+    }
+
     return data.outputs[0].data.regions.map(face => {
       const clarifaiFace = face.region_info.bounding_box;
       const image = document.getElementById('inputimage');
@@ -73,7 +116,9 @@ class App extends Component {
   }
 
   displayFaceBoxes = (boxes) => {
-    this.setState({boxes: boxes});
+    if(boxes){
+      this.setState({boxes: boxes});
+    }
   }
 
   onInputChange = (event) => {
@@ -84,7 +129,10 @@ class App extends Component {
     this.setState({imageUrl: this.state.input});
       fetch('http://localhost:3000/imageurl', {
         method: 'post',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': window.sessionStorage.getItem('token')
+        },
         body: JSON.stringify({
           input: this.state.input
         })
@@ -94,7 +142,10 @@ class App extends Component {
         if (response) {
           fetch('http://localhost:3000/image', {
             method: 'put',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': window.sessionStorage.getItem('token')
+            },
             body: JSON.stringify({
               id: this.state.user.id
             })
@@ -111,8 +162,28 @@ class App extends Component {
       .catch(err => console.log(err));
   }
 
+  signOut = () => {
+
+    fetch('http://localhost:3000/signout', {
+      'method' : 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': window.sessionStorage.getItem('token')
+      }
+    })
+    .then(response => response.json())
+    .then(success => {
+
+      console.log(success);
+      window.sessionStorage.removeItem('token');
+    })
+    .catch(error => console.log(error));
+  }
+
   onRouteChange = (route) => {
+
     if (route === 'signout') {
+      this.signOut();
       return this.setState(initialState);
     } else if (route === 'home') {
       this.setState({isSignedIn: true});
@@ -121,7 +192,6 @@ class App extends Component {
   }
 
   toggleModal = () => {
-    console.log('clicked');
     this.setState( prevState => ({
       ...prevState,
       isProfileOpen: !prevState.isProfileOpen
@@ -129,7 +199,7 @@ class App extends Component {
   }
 
   render() {
-    const { isSignedIn, imageUrl, route, boxes, isProfileOpen } = this.state;
+    const { isSignedIn, imageUrl, route, boxes, isProfileOpen, user } = this.state;
     return (
       <div className="App">
          <Particles className='particles'
@@ -142,7 +212,8 @@ class App extends Component {
         />
         { isProfileOpen &&
           <Modal>
-            <Profile isProfileOpen={isProfileOpen} toggleModal={this.toggleModal} />
+            <Profile isProfileOpen={isProfileOpen} toggleModal={this.toggleModal}
+               loadUser={this.loadUser} user={user} />
          </Modal>
         }
         { route === 'home'
