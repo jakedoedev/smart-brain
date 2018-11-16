@@ -1,5 +1,6 @@
 import React from 'react';
 import './Register.css';
+import axios from 'axios';
 
 class Register extends React.Component {
   constructor(props) {
@@ -24,16 +25,17 @@ class Register extends React.Component {
   }
 
   onSubmitSignIn = () => {
-    fetch('http://localhost:3000/register', {
+    // todo - link to sign in
+    axios({
+      url: 'http://localhost:3000/register',
       method: 'post',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
+      data: JSON.stringify({
         email: this.state.email,
         password: this.state.password,
         name: this.state.name
       })
     })
-      .then(response => response.json())
       .then(user => {
         if (user.id) {
           this.props.loadUser(user)

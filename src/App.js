@@ -9,6 +9,7 @@ import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm';
 import Rank from './components/Rank/Rank';
 import Modal from './components/Modal/Modal';
 import Profile from './components/Profile/Profile';
+import axios from 'axios';
 import './App.css';
 
 const particlesOptions = {
@@ -29,7 +30,7 @@ const initialState = {
   boxes: [],
   route: 'signin',
   isSignedIn: false,
-  isProfileOpen: false ,
+  isProfileOpen: false,
   user: {
     id: '',
     name: '',
@@ -49,53 +50,78 @@ class App extends Component {
 
   componentDidMount() {
     const token = window.sessionStorage.getItem('token');
-    if(token) {
-      fetch('http://localhost:3000/signin', {
-        method: 'post',
-        headers: {
-          'Content-Type': 'application/json',
-          // TODO: Apply Standard 'Authorization' : 'Bearer ' + token
-          'Authorization': token
-          // 'Authorization' : 'Bearer ' + token
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data && data.id){
-          fetch(`http://localhost:3000/profile/${data.id}`, {
+    if (token) {
+      this.signin(token);
+    }
+  }
+
+  signin = (token) => {
+    axios({
+      method: 'post',
+      url:'http://localhost:3000/signin',
+      headers: {
+        'Content-Type': 'application/json',
+        // TODO: Apply Standard 'Authorization' : 'Bearer ' + token
+        'Authorization': token
+        // 'Authorization' : 'Bearer ' + token
+      }
+    })
+      .then(response => {
+        const data = response.data;
+
+        if (data && data.userId) {
+          axios.get(`http://localhost:3000/profile/${data.userId}`, {
             method: 'get',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': token
             }
           })
-          .then(response => response.json())
-          .then(user => {
-            if(user && user.email){
-              this.loadUser(user);
-              this.onRouteChange('home');
-            }
-          })
+            .then(response => {
+              const user = response.data;
+
+              if (user && user.email) {
+                this.loadUser(user);
+                this.onRouteChange('home');
+              }
+            })
         }
       })
       .catch(error => console.log(error));
-    }
+  }
+
+  signOut = () => {
+    axios({
+      url:'http://localhost:3000/signout',
+      'method': 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': window.sessionStorage.getItem('token')
+      }
+    })
+      .then(success => {
+        // console.log(success);
+        window.sessionStorage.removeItem('token');
+      })
+      .catch(error => console.log(error));
   }
 
   loadUser = (data) => {
-    this.setState({user: {
-      id: data.id,
-      name: data.name,
-      age: data.age,
-      pet: data.pet,
-      email: data.email,
-      entries: data.entries,
-      joined: data.joined
-    }})
+    this.setState({
+      user: {
+        id: data.id,
+        name: data.name,
+        age: data.age,
+        pet: data.pet,
+        email: data.email,
+        entries: data.entries,
+        joined: data.joined
+      }
+    })
   }
 
   calculateFacesLocation = (data) => {
-    if(!data && !data.outputs){
+    if (!data && !data.outputs) {
       return;
     }
 
@@ -116,68 +142,54 @@ class App extends Component {
   }
 
   displayFaceBoxes = (boxes) => {
-    if(boxes){
-      this.setState({boxes: boxes});
+    if (boxes) {
+      this.setState({ boxes: boxes });
     }
   }
 
   onInputChange = (event) => {
-    this.setState({input: event.target.value});
+    this.setState({ input: event.target.value });
   }
 
   onButtonSubmit = () => {
-    this.setState({imageUrl: this.state.input});
-      fetch('http://localhost:3000/imageurl', {
-        method: 'post',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': window.sessionStorage.getItem('token')
-        },
-        body: JSON.stringify({
-          input: this.state.input
-        })
+    this.setState({ imageUrl: this.state.input });
+    axios({
+      url: 'http://localhost:3000/imageurl',
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': window.sessionStorage.getItem('token')
+      },
+      data: JSON.stringify({
+        input: this.state.input
       })
-      .then(response => response.json())
+    })
       .then(response => {
-        if (response) {
-          fetch('http://localhost:3000/image', {
+        const imageBox = response.data;
+
+        if (imageBox) {
+          axios({
+            url: 'http://localhost:3000/image',
             method: 'put',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': window.sessionStorage.getItem('token')
             },
-            body: JSON.stringify({
+            data: JSON.stringify({
               id: this.state.user.id
             })
           })
-            .then(response => response.json())
-            .then(count => {
-              this.setState(Object.assign(this.state.user, { entries: count}))
+            .then(res => {
+              const count = res.data;
+              console.log(count)
+              this.setState(Object.assign(this.state.user, { entries: count }))
             })
             .catch(console.log)
 
         }
-        this.displayFaceBoxes(this.calculateFacesLocation(response))
+        this.displayFaceBoxes(this.calculateFacesLocation(imageBox))
       })
       .catch(err => console.log(err));
-  }
-
-  signOut = () => {
-
-    fetch('http://localhost:3000/signout', {
-      'method' : 'post',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': window.sessionStorage.getItem('token')
-      }
-    })
-    .then(response => response.json())
-    .then(success => {
-
-      console.log(success);
-      window.sessionStorage.removeItem('token');
-    })
-    .catch(error => console.log(error));
   }
 
   onRouteChange = (route) => {
@@ -186,13 +198,13 @@ class App extends Component {
       this.signOut();
       return this.setState(initialState);
     } else if (route === 'home') {
-      this.setState({isSignedIn: true});
+      this.setState({ isSignedIn: true });
     }
-    this.setState({route: route});
+    this.setState({ route: route });
   }
 
   toggleModal = () => {
-    this.setState( prevState => ({
+    this.setState(prevState => ({
       ...prevState,
       isProfileOpen: !prevState.isProfileOpen
     }))
@@ -202,7 +214,7 @@ class App extends Component {
     const { isSignedIn, imageUrl, route, boxes, isProfileOpen, user } = this.state;
     return (
       <div className="App">
-         <Particles className='particles'
+        <Particles className='particles'
           params={particlesOptions}
         />
         <Navigation isSignedIn={isSignedIn}
@@ -210,30 +222,30 @@ class App extends Component {
           username={this.state.user.name}
           toggleModal={this.toggleModal}
         />
-        { isProfileOpen &&
+        {isProfileOpen &&
           <Modal>
             <Profile isProfileOpen={isProfileOpen} toggleModal={this.toggleModal}
-               loadUser={this.loadUser} user={user} />
-         </Modal>
+              loadUser={this.loadUser} user={user} />
+          </Modal>
         }
-        { route === 'home'
+        {route === 'home'
           ? <div>
-              <Logo />
-              <Rank
-                name={this.state.user.name}
-                entries={this.state.user.entries}
-              />
-              <ImageLinkForm
-                onInputChange={this.onInputChange}
-                onButtonSubmit={this.onButtonSubmit}
-              />
-              <FaceRecognition boxes={boxes} imageUrl={imageUrl} />
-            </div>
+            <Logo />
+            <Rank
+              name={this.state.user.name}
+              entries={this.state.user.entries}
+            />
+            <ImageLinkForm
+              onInputChange={this.onInputChange}
+              onButtonSubmit={this.onButtonSubmit}
+            />
+            <FaceRecognition boxes={boxes} imageUrl={imageUrl} />
+          </div>
           : (
-             route === 'signin'
-             ? <Signin loadUser={this.loadUser} onRouteChange={this.onRouteChange}/>
-             : <Register loadUser={this.loadUser} onRouteChange={this.onRouteChange}/>
-            )
+            route === 'signin'
+              ? <Signin loadUser={this.loadUser} onRouteChange={this.onRouteChange} />
+              : <Register loadUser={this.loadUser} onRouteChange={this.onRouteChange} />
+          )
         }
       </div>
     );
