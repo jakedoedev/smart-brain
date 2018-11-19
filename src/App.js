@@ -10,6 +10,7 @@ import Rank from './components/Rank/Rank';
 import Modal from './components/Modal/Modal';
 import Profile from './components/Profile/Profile';
 import axios from 'axios';
+import client from './api';
 import './App.css';
 
 const particlesOptions = {
@@ -51,48 +52,39 @@ class App extends Component {
   componentDidMount() {
     const token = window.sessionStorage.getItem('token');
     if (token) {
-      this.signin(token);
+      client(token).post('http://localhost:3000/signin')
+        .then(response => {
+          this.handleSignIn(response.data, token);
+        })
+        .catch(error => console.log(error));
     }
   }
 
-  signin = (token) => {
-    axios({
-      method: 'post',
-      url:'http://localhost:3000/signin',
-      headers: {
-        'Content-Type': 'application/json',
-        // TODO: Apply Standard 'Authorization' : 'Bearer ' + token
-        'Authorization': token
-        // 'Authorization' : 'Bearer ' + token
-      }
-    })
-      .then(response => {
-        const data = response.data;
+  handleSignIn = (data, token = null) => {
+    if (data && data.userId) {
+      client(token).get(`http://localhost:3000/profile/${data.userId}`)
+        .then(response => {
+          console.log('hey');
+          const user = response.data;
 
-        if (data && data.userId) {
-          axios.get(`http://localhost:3000/profile/${data.userId}`, {
-            method: 'get',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token
-            }
-          })
-            .then(response => {
-              const user = response.data;
+          if (user && user.email) {
+            this.loadUser(user);
+            this.onRouteChange('home');
+          }
 
-              if (user && user.email) {
-                this.loadUser(user);
-                this.onRouteChange('home');
-              }
-            })
-        }
-      })
-      .catch(error => console.log(error));
+          console.log(data.success);
+          if (data.success === 'true') {
+            this.saveAuthTokenInSession(token);
+          }
+        })
+        .catch(error => console.log(error));
+    }
+
   }
 
   signOut = () => {
     axios({
-      url:'http://localhost:3000/signout',
+      url: 'http://localhost:3000/signout',
       'method': 'post',
       headers: {
         'Content-Type': 'application/json',
@@ -104,6 +96,10 @@ class App extends Component {
         window.sessionStorage.removeItem('token');
       })
       .catch(error => console.log(error));
+  }
+
+  saveAuthTokenInSession = (token) => {
+    window.sessionStorage.setItem('token', token);
   }
 
   loadUser = (data) => {
@@ -243,8 +239,8 @@ class App extends Component {
           </div>
           : (
             route === 'signin'
-              ? <Signin loadUser={this.loadUser} onRouteChange={this.onRouteChange} />
-              : <Register loadUser={this.loadUser} onRouteChange={this.onRouteChange} />
+              ? <Signin loadUser={this.loadUser} onRouteChange={this.onRouteChange} handleSignIn={this.handleSignIn} />
+              : <Register loadUser={this.loadUser} onRouteChange={this.onRouteChange} handleSignIn={this.handleSignIn} />
           )
         }
       </div>

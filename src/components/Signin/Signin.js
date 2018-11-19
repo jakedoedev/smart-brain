@@ -1,6 +1,6 @@
 import React from 'react';
 import './Signin.css';
-import axios from 'axios';
+import client from '../../api';
 
 class Signin extends React.Component {
   constructor(props) {
@@ -19,44 +19,14 @@ class Signin extends React.Component {
     this.setState({signInPassword: event.target.value})
   }
 
-  saveAuthTokenInSession = (token) => {
-    window.sessionStorage.setItem('token', token);
-  }
-
   onSubmitSignIn = () => {
-    axios({
-      url: 'http://localhost:3000/signin',
-      method: 'post',
-      headers: {'Content-Type': 'application/json'},
-      data: JSON.stringify({
+    client().post('http://localhost:3000/signin', {
         email: this.state.signInEmail,
         password: this.state.signInPassword
-      })
     })
-      .then(res => {
-        const data = res.data;
-
-        if (data.userId && data.success === 'true') {
-          this.saveAuthTokenInSession(data.token);
-
-          // TODO: refractor for code reuse - create 1 func in App
-          axios({
-            url: `http://localhost:3000/profile/${data.userId}`,
-            method: 'get',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': data.token
-            }
-          })
-          .then(res => {
-            const user = res.data;
-            if(user && user.email){
-              this.props.loadUser(user);
-              this.props.onRouteChange('home');
-            }
-          })
-        }
-      })
+    .then(res => {
+      this.props.handleSignIn(res.data, res.data.token);
+    })
   }
 
   render() {

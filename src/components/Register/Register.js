@@ -1,6 +1,6 @@
 import React from 'react';
 import './Register.css';
-import axios from 'axios';
+import client from '../../api';
 
 class Register extends React.Component {
   constructor(props) {
@@ -13,34 +13,26 @@ class Register extends React.Component {
   }
 
   onNameChange = (event) => {
-    this.setState({name: event.target.value})
+    this.setState({ name: event.target.value })
   }
 
   onEmailChange = (event) => {
-    this.setState({email: event.target.value})
+    this.setState({ email: event.target.value })
   }
 
   onPasswordChange = (event) => {
-    this.setState({password: event.target.value})
+    this.setState({ password: event.target.value })
   }
 
   onSubmitSignIn = () => {
     // todo - link to sign in
-    axios({
-      url: 'http://localhost:3000/register',
-      method: 'post',
-      headers: {'Content-Type': 'application/json'},
-      data: JSON.stringify({
-        email: this.state.email,
-        password: this.state.password,
-        name: this.state.name
-      })
+    client().post('http://localhost:3000/register', {
+      email: this.state.email,
+      password: this.state.password,
+      name: this.state.name
     })
-      .then(user => {
-        if (user.id) {
-          this.props.loadUser(user)
-          this.props.onRouteChange('home');
-        }
+      .then(res => {
+        this.props.handleSignIn({ userId: res.data.id});
       })
   }
 
